@@ -2,7 +2,6 @@ package main
 
 import (
 	"encoding/json"
-	"fmt"
 	"os"
 	"strconv"
 	"time"
@@ -53,7 +52,6 @@ func (c *Counter) getCounters(counterChan chan Value) {
 	for _, db := range c.Dbs {
 		for _, coll := range db.Collections {
 			collectionSessions = append(collectionSessions, mongoSession.DB(db.Name).C(coll))
-			fmt.Println(collectionSessions)
 		}
 	}
 
