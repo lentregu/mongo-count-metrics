@@ -1,3 +1,2 @@
-#bin directory
-./bin/*
-./conf/*
+#Directories
+bin/

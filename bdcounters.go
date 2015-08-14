@@ -2,7 +2,6 @@ package main
 
 import (
 	"encoding/json"
-	"fmt"
 	"os"
 	"strconv"
 	"time"
@@ -41,7 +40,6 @@ func (c *BDConfig) read() error {
 	configFile, _ := os.Open(c.fileName)
 	jsonDecoder := json.NewDecoder(configFile)
 	c.dataBDConfig = DataBDConfig{}
-	fmt.Printf("Filename: %s", c.fileName)
 	err := jsonDecoder.Decode(&c.dataBDConfig)
 	return err
 }
