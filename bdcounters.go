@@ -36,14 +36,6 @@ type Value struct {
 	value int
 }
 
-func getConfiguration(fileName string) (BDConfig, error) {
-	configFile, _ := os.Open(fileName)
-	jsonDecoder := json.NewDecoder(configFile)
-	config := BDConfig{}
-	err := jsonDecoder.Decode(&config)
-	return config, err
-}
-
 func (c *BDConfig) read() error {
 	// Nota: intentar hacer genérico con interfaz para Config y BDConfig
 	configFile, _ := os.Open(c.fileName)
