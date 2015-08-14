@@ -2,6 +2,8 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
+	"flag"
 	"fmt"
 	"log"
 	"os"
@@ -12,7 +14,7 @@ import (
 const (
 	metrics         = "metrics"
 	info            = "info"
-	logsDir         = "/var/log/mc_users_bd"
+	logsDir         = "/var/log/metrics_bd"
 	pollingInterval = 5000 * time.Millisecond
 )
 
@@ -31,23 +33,62 @@ type Metric struct {
 }
 
 var (
-	logger *log.Logger
+	logger  *log.Logger
+	logFile *os.File
+	config  Config
 )
 
-func main() {
-	//session, err := mgo.Dial("server1.example.com, server2.example.com")
-	config, err := getConfiguration("config.json")
+func init() {
+
+	var fatalErr error
+	defer func() {
+		if fatalErr != nil {
+			flag.PrintDefaults()
+			log.Fatalln(fatalErr)
+		}
+	}()
+
+	configFileName := flag.String("config", "config.json", "the config file")
+
+	//flag.Args --> Return the non-flag command-line arguments
+	args := flag.Args()
+	flag.Parse()
+
+	if len(args) != 0 {
+		fmt.Println(len(args))
+		fatalErr = errors.New("invalid usage; must specify command")
+		return
+	}
+
+	var err error
+	config, err = getConfiguration(*configFileName)
 	if err != nil {
-		panic(err)
+		fatalErr = errors.New("Error, the file " + *configFileName + " is not present")
+		return
 	}
 
 	createDirIfNotExist(logsDir)
-	logFile, err := os.OpenFile(filepath.Join(logsDir, "mc_users_bd.log"), os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
+	logFile, err = os.OpenFile(filepath.Join(logsDir, "metrics_bd.log"), os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
 	if err != nil {
-		panic(err)
+		fatalErr = errors.New(err.Error())
+		return
 	}
 
-	/*****************************************************/
+}
+
+func main() {
+	/*
+		config, err := getConfiguration("config.json")
+		if err != nil {
+			panic(err)
+		}
+
+		createDirIfNotExist(logsDir)
+		logFile, err := os.OpenFile(filepath.Join(logsDir, "metrics_bd.log"), os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
+		if err != nil {
+			panic(err)
+		}
+	*/
 	counterChan := make(chan Value)
 	for _, counter := range config.Counters {
 		go func() {
@@ -55,15 +96,17 @@ func main() {
 		}()
 	}
 
-	logger = log.New(logFile, info, log.Ldate|log.Ltime|log.Lshortfile)
+	//logger = log.New(logFile, info, log.Ldate|log.Ltime|log.Lshortfile)
 	for {
 		//fmt.Println("Lo que viene del canal es: ", <-counterChan)
 		counterValue := <-counterChan
 		metric := Metric{MetricTime: time.Now().Format(time.RFC3339), Level: info, Msg: metrics, CollectionName: counterValue.name, CountValue: counterValue.value}
 		jsonMetric, _ := json.Marshal(metric)
 		//os.Stdout.Write(jsonMetric)
+		logFile.Write(jsonMetric)
+		logFile.WriteString("\n")
 		fmt.Println(string(jsonMetric))
-		logger.Println(string(jsonMetric))
+		//logger.Println(string(jsonMetric))
 	}
 
 }
