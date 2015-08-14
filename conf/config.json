@@ -1,0 +1,6 @@
+{
+  "logsDir": "/var/log/metrics_bd",
+  "logsFile": "metrics_bd.log",
+  "pollingInterval": 5000,
+  "metrics_msg": "metrics"
+}

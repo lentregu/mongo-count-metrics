@@ -18,6 +18,28 @@ const (
 	pollingInterval = 5000 * time.Millisecond
 )
 
+type DataConfig struct {
+	LogsDir         string `json:"logsDir"`
+	LogsFile        string `json:"logsFile"`
+	PollingInterval int    `json:"pollingInterval"`
+	Metrics_msg     string `json:"metrics_msg"`
+}
+
+type Config struct {
+	fileName   string
+	dataConfig DataConfig
+}
+
+func (c *Config) read() error {
+	// Nota: intentar hacer genérico con interfaz para Config y BDConfig
+	configFile, _ := os.Open(c.fileName)
+	jsonDecoder := json.NewDecoder(configFile)
+	c.dataConfig = DataConfig{}
+	fmt.Printf("Filename: %s", c.fileName)
+	err := jsonDecoder.Decode(&c.dataConfig)
+	return err
+}
+
 // Metric type defines the info to be written in a metric log trace
 type Metric struct {
 	// Level is the log level
@@ -33,9 +55,10 @@ type Metric struct {
 }
 
 var (
-	logger  *log.Logger
-	logFile *os.File
-	config  Config
+	logger   *log.Logger
+	logFile  *os.File
+	bdConfig *BDConfig
+	config   *Config
 )
 
 func init() {
@@ -48,65 +71,39 @@ func init() {
 		}
 	}()
 
-	configFileName := flag.String("config", "config.json", "the config file")
+	configFileName := flag.String("config-filename", "config.json", "the application config file")
+	bdConfigFileName := flag.String("bd-filename", "bd.json", "the configuration of the bd counters")
 
 	//flag.Args --> Return the non-flag command-line arguments
 	args := flag.Args()
 	flag.Parse()
 
 	if len(args) != 0 {
-		fmt.Println(len(args))
 		fatalErr = errors.New("invalid usage; must specify command")
 		return
 	}
 
 	var err error
-	config, err = getConfiguration(*configFileName)
+
+	config = &Config{fileName: *configFileName}
+	err = config.read()
 	if err != nil {
 		fatalErr = errors.New("Error, the file " + *configFileName + " is not present")
 		return
 	}
 
-	createDirIfNotExist(logsDir)
-	logFile, err = os.OpenFile(filepath.Join(logsDir, "metrics_bd.log"), os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
+	bdConfig = &BDConfig{fileName: *bdConfigFileName}
+	err = bdConfig.read()
 	if err != nil {
-		fatalErr = errors.New(err.Error())
+		fatalErr = errors.New("Error, the file " + *bdConfigFileName + " is not present")
 		return
 	}
 
-}
-
-func main() {
-	/*
-		config, err := getConfiguration("config.json")
-		if err != nil {
-			panic(err)
-		}
-
-		createDirIfNotExist(logsDir)
-		logFile, err := os.OpenFile(filepath.Join(logsDir, "metrics_bd.log"), os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
-		if err != nil {
-			panic(err)
-		}
-	*/
-	counterChan := make(chan Value)
-	for _, counter := range config.Counters {
-		go func() {
-			counter.getCounters(counterChan)
-		}()
-	}
-
-	//logger = log.New(logFile, info, log.Ldate|log.Ltime|log.Lshortfile)
-	for {
-		//fmt.Println("Lo que viene del canal es: ", <-counterChan)
-		counterValue := <-counterChan
-		metric := Metric{MetricTime: time.Now().Format(time.RFC3339), Level: info, Msg: metrics, CollectionName: counterValue.name, CountValue: counterValue.value}
-		jsonMetric, _ := json.Marshal(metric)
-		//os.Stdout.Write(jsonMetric)
-		logFile.Write(jsonMetric)
-		logFile.WriteString("\n")
-		fmt.Println(string(jsonMetric))
-		//logger.Println(string(jsonMetric))
+	createDirIfNotExist(logsDir)
+	logFile, err = os.OpenFile(filepath.Join(config.dataConfig.LogsDir, config.dataConfig.LogsFile), os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
+	if err != nil {
+		fatalErr = errors.New(err.Error())
+		return
 	}
 
 }
@@ -117,4 +114,26 @@ func createDirIfNotExist(dirName string) {
 			panic(err)
 		}
 	}
+}
+
+func main() {
+
+	counterChan := make(chan Value)
+	for _, counter := range bdConfig.dataBDConfig.Counters {
+		go func() {
+			counter.getCounters(counterChan)
+		}()
+	}
+
+	//logger = log.New(logFile, info, log.Ldate|log.Ltime|log.Lshortfile)
+	for {
+		counterValue := <-counterChan
+		metric := Metric{MetricTime: time.Now().Format(time.RFC3339), Level: info, Msg: config.dataConfig.Metrics_msg, CollectionName: counterValue.name, CountValue: counterValue.value}
+		jsonMetric, _ := json.Marshal(metric)
+		//os.Stdout.Write(jsonMetric)
+		logFile.Write(jsonMetric)
+		logFile.WriteString("\n")
+		fmt.Println(string(jsonMetric))
+	}
+
 }
