@@ -35,7 +35,6 @@ func (c *Config) read() error {
 	configFile, _ := os.Open(c.fileName)
 	jsonDecoder := json.NewDecoder(configFile)
 	c.dataConfig = DataConfig{}
-	fmt.Printf("Filename: %s", c.fileName)
 	err := jsonDecoder.Decode(&c.dataConfig)
 	return err
 }
