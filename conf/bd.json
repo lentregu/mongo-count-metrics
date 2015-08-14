@@ -1,0 +1,19 @@
+{
+"counters" : [
+     {
+         "server": "localhost",
+         "port": 27017,
+         "dbs": 
+         [
+           {
+              "name": "MyDB",
+              "collections": ["Person"]
+           },
+           {
+              "name": "test",
+              "collections": ["people", "users"]
+           }            
+         ]
+     }
+]
+}
