@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"errors"
 	"flag"
-	"fmt"
 	"log"
 	"os"
 	"path/filepath"
@@ -98,7 +97,7 @@ func init() {
 		return
 	}
 
-	createDirIfNotExist(logsDir)
+	createDirIfNotExist(config.dataConfig.LogsDir)
 	logFile, err = os.OpenFile(filepath.Join(config.dataConfig.LogsDir, config.dataConfig.LogsFile), os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
 	if err != nil {
 		fatalErr = errors.New(err.Error())
@@ -132,7 +131,6 @@ func main() {
 		//os.Stdout.Write(jsonMetric)
 		logFile.Write(jsonMetric)
 		logFile.WriteString("\n")
-		fmt.Println(string(jsonMetric))
 	}
 
 }
